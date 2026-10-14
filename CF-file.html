@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FHIR Demo Sandbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: light;
+    --paper: #fbf8f7;
+    --grid: #f0d9d9;
+    --grid-strong: #e6bcbc;
+    --ink: #1f2933;
+    --muted: #5f6b76;
+    --line: #d9dee3;
+    --panel: #ffffff;
+    --trace: #b3202f;
+    --ok: #1d7a4f;
+    --warn: #a15c00;
+    --code-bg: #f4f6f8;
+    --radius-s: 4px;
+    --radius-m: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #141a20;
+      --grid: #24191b;
+      --grid-strong: #3a2226;
+      --ink: #e6e9ec;
+      --muted: #9aa5af;
+      --line: #2e3740;
+      --panel: #1a2128;
+      --trace: #ff6b78;
+      --ok: #4cc58c;
+      --warn: #f0a640;
+      --code-bg: #10161b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #141a20; --grid: #24191b; --grid-strong: #3a2226; --ink: #e6e9ec;
+    --muted: #9aa5af; --line: #2e3740; --panel: #1a2128; --trace: #ff6b78;
+    --ok: #4cc58c; --warn: #f0a640; --code-bg: #10161b;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.5 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", "Noto Sans TC", sans-serif;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Header: ECG paper with a live trace */
+  header {
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid-strong) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-strong) 1px, transparent 1px),
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .head-inner { max-width: 1120px; margin: 0 auto; padding: 28px 20px 8px; }
+  h1 { font-size: 1.9rem; line-height: 1.15; margin: 0 0 6px; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { margin: 0; color: var(--muted); max-width: 62ch; }
+  .trace { display: block; width: 100%; height: 56px; }
+  .trace path { fill: none; stroke: var(--trace); stroke-width: 2; stroke-linejoin: round; }
+  .trace.beat path { animation: draw 1.1s ease-out; }
+  @keyframes draw { from { stroke-dashoffset: 1400; } to { stroke-dashoffset: 0; } }
+  @media (prefers-reduced-motion: reduce) { .trace.beat path { animation: none; } }
+
+  main {
+    max-width: 1120px; margin: 0 auto; padding: 24px 20px 48px;
+    display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 24px;
+  }
+  @media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-m); padding: 18px; }
+  .stack { display: grid; gap: 24px; align-content: start; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; font-weight: 600; }
+  p.hint { color: var(--muted); font-size: 0.9rem; margin: 0 0 12px; }
+
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin: 10px 0 4px; }
+  input, select, textarea {
+    width: 100%; font: inherit; color: var(--ink); background: var(--paper);
+    border: 1px solid var(--line); border-radius: var(--radius-s); padding: 8px 10px;
+  }
+  textarea { font: 0.85rem/1.5 "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; min-height: 220px; resize: vertical; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--trace); outline-offset: 2px;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row > .grow { flex: 1 1 200px; }
+  .method { flex: 0 0 96px; }
+
+  button {
+    font: inherit; font-weight: 500; cursor: pointer; border-radius: var(--radius-s);
+    padding: 8px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  }
+  button.primary { background: var(--trace); border-color: var(--trace); color: #fff; }
+  button:disabled { opacity: 0.55; cursor: wait; }
+  .actions { margin-top: 12px; }
+
+  .token-state { font-size: 0.9rem; margin-top: 10px; }
+  .token-state.set { color: var(--ok); }
+  .token-state.unset { color: var(--warn); }
+
+  .status { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-bottom: 10px; }
+  .code { font: 600 1.4rem/1 "IBM Plex Mono", ui-monospace, monospace; }
+  .code.ok { color: var(--ok); } .code.bad { color: var(--trace); }
+  .meta { color: var(--muted); font-size: 0.9rem; overflow-wrap: anywhere; }
+
+  .entries { list-style: none; margin: 0 0 12px; padding: 0; border-top: 1px solid var(--line); }
+  .entries li { border-bottom: 1px solid var(--line); }
+  .entries button {
+    width: 100%; text-align: left; border: 0; border-radius: 0; background: transparent;
+    padding: 8px 4px; display: flex; gap: 10px; align-items: baseline;
+  }
+  .entries .rid { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.85rem; color: var(--muted); }
+
+  pre {
+    margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius-s);
+    padding: 12px; font: 0.82rem/1.5 "IBM Plex Mono", ui-monospace, monospace;
+    overflow: auto; max-height: 70vh; white-space: pre;
+  }
+  .empty { color: var(--muted); }
+  footer { max-width: 1120px; margin: 0 auto; padding: 0 20px 32px; color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-inner">
+    <h1>FHIR Demo Sandbox</h1>
+    <p class="sub">Read, create and update FHIR R4 resources on the demo server. The data is synthetic and resets every night at 03:00 (UTC+8).</p>
+  </div>
+  <svg class="trace" id="trace" viewBox="0 0 1120 56" preserveAspectRatio="none" aria-hidden="true">
+    <path stroke-dasharray="1400" d="M0 34 H180 l10 -4 l10 4 H260 l6 6 l10 -36 l10 44 l8 -14 H420 l14 -6 l14 6 H640 l10 -4 l10 4 H720 l6 6 l10 -36 l10 44 l8 -14 H880 l14 -6 l14 6 H1120"/>
+  </svg>
+</header>
+
+<main>
+  <div class="stack">
+    <section aria-labelledby="conn-h">
+      <h2 id="conn-h">Connect</h2>
+      <p class="hint">Paste the Client ID and Client Secret you received. They stay in this browser tab only and are removed when you close it.</p>
+
+      <label for="base">Server URL</label>
+      <input id="base" spellcheck="false" autocomplete="off">
+
+      <label for="cfId">Client ID</label>
+      <input id="cfId" placeholder="xxxx.access" spellcheck="false" autocomplete="off">
+
+      <label for="cfSecret">Client Secret</label>
+      <input id="cfSecret" type="password" placeholder="Client Secret" autocomplete="off">
+
+      <div class="row actions">
+        <button class="primary" id="saveBtn">Save for this tab</button>
+        <button id="forgetBtn">Forget token</button>
+        <button id="checkBtn">Check connection</button>
+      </div>
+      <div class="token-state unset" id="tokenState" role="status">No token saved.</div>
+    </section>
+
+    <section aria-labelledby="req-h">
+      <h2 id="req-h">Request</h2>
+
+      <div class="row">
+        <select id="method" class="method" aria-label="HTTP method">
+          <option>GET</option><option>POST</option><option>PUT</option>
+        </select>
+        <input id="path" class="grow" value="Patient?_count=10" aria-label="Resource path" spellcheck="false">
+      </div>
+
+      <label for="template">Start from a template</label>
+      <select id="template">
+        <option value="">Choose a template…</option>
+        <option value="patient">New Patient</option>
+        <option value="hr">Heart rate Observation</option>
+        <option value="bp">Blood pressure Observation</option>
+      </select>
+
+      <label for="body">Body (JSON, used for POST and PUT)</label>
+      <textarea id="body" spellcheck="false" placeholder='{ "resourceType": "Patient" }'></textarea>
+
+      <div class="row actions">
+        <button class="primary" id="sendBtn">Send request</button>
+        <button id="formatBtn">Format JSON</button>
+      </div>
+    </section>
+  </div>
+
+  <section aria-labelledby="res-h" aria-live="polite">
+    <h2 id="res-h">Response</h2>
+    <div class="status">
+      <span class="code" id="code"></span>
+      <span class="meta" id="meta"></span>
+    </div>
+    <ul class="entries" id="entries" hidden></ul>
+    <pre id="out" class="empty">Save your token, then press Check connection or Send request.</pre>
+  </section>
+</main>
+
+<footer>Do not upload real patient information. Need a token? Contact the FHIR project team.</footer>
+
+<script>
+const DEFAULT_BASE = "https://demo.fhirbrige.com/fhir";
+const store = {
+  get(k) { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, v); } catch {} },
+  del(k) { try { sessionStorage.removeItem(k); } catch {} }
+};
+const $ = id => document.getElementById(id);
+
+const TEMPLATES = {
+  patient: { method: "POST", path: "Patient", body: {
+    resourceType: "Patient",
+    name: [{ family: "Chen", given: ["Wei"] }],
+    gender: "male",
+    birthDate: "1990-05-12"
+  }},
+  hr: { method: "POST", path: "Observation", body: {
+    resourceType: "Observation",
+    status: "final",
+    category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "vital-signs" }] }],
+    code: { coding: [{ system: "http://loinc.org", code: "8867-4", display: "Heart rate" }] },
+    subject: { reference: "Patient/REPLACE-WITH-ID" },
+    effectiveDateTime: new Date().toISOString(),
+    valueQuantity: { value: 72, unit: "beats/minute", system: "http://unitsofmeasure.org", code: "/min" }
+  }},
+  bp: { method: "POST", path: "Observation", body: {
+    resourceType: "Observation",
+    status: "final",
+    category: [{ coding: [{ system: "http://terminology.hl7.org/CodeSystem/observation-category", code: "vital-signs" }] }],
+    code: { coding: [{ system: "http://loinc.org", code: "85354-9", display: "Blood pressure panel" }] },
+    subject: { reference: "Patient/REPLACE-WITH-ID" },
+    effectiveDateTime: new Date().toISOString(),
+    component: [
+      { code: { coding: [{ system: "http://loinc.org", code: "8480-6", display: "Systolic blood pressure" }] },
+        valueQuantity: { value: 120, unit: "mmHg", system: "http://unitsofmeasure.org", code: "mm[Hg]" } },
+      { code: { coding: [{ system: "http://loinc.org", code: "8462-4", display: "Diastolic blood pressure" }] },
+        valueQuantity: { value: 80, unit: "mmHg", system: "http://unitsofmeasure.org", code: "mm[Hg]" } }
+    ]
+  }}
+};
+
+function base() { return $("base").value.trim().replace(/\/+$/, ""); }
+
+function showTokenState() {
+  const has = store.get("cfId") && store.get("cfSecret");
+  const el = $("tokenState");
+  el.textContent = has ? "Token saved for this tab." : "No token saved.";
+  el.className = "token-state " + (has ? "set" : "unset");
+}
+
+function beat() {
+  const t = $("trace");
+  t.classList.remove("beat"); void t.getBoundingClientRect(); t.classList.add("beat");
+}
+
+function render(status, ok, metaText, data) {
+  $("code").textContent = status;
+  $("code").className = "code " + (ok ? "ok" : "bad");
+  $("meta").textContent = metaText;
+  const out = $("out");
+  out.classList.remove("empty");
+  out.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+  renderEntries(data);
+}
+
+function label(r) {
+  if (r.resourceType === "Patient" && r.name && r.name[0]) {
+    const n = r.name[0];
+    return [(n.given || []).join(" "), n.family].filter(Boolean).join(" ") || "Patient";
+  }
+  if (r.code && r.code.coding && r.code.coding[0]) return r.code.coding[0].display || r.code.coding[0].code;
+  return r.resourceType;
+}
+
+function renderEntries(data) {
+  const ul = $("entries");
+  ul.innerHTML = "";
+  const list = data && data.resourceType === "Bundle" && Array.isArray(data.entry) ? data.entry : [];
+  ul.hidden = list.length === 0;
+  list.forEach(e => {
+    const r = e.resource; if (!r || !r.id) return;
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    const name = document.createElement("span"); name.textContent = label(r);
+    const rid = document.createElement("span"); rid.className = "rid"; rid.textContent = r.resourceType + "/" + r.id;
+    b.append(name, rid);
+    b.title = "Load into the editor to update it";
+    b.onclick = () => {
+      $("method").value = "PUT";
+      $("path").value = r.resourceType + "/" + r.id;
+      $("body").value = JSON.stringify(r, null, 2);
+      $("body").focus();
+    };
+    li.append(b); ul.append(li);
+  });
+}
+
+async function send(method, path, body) {
+  const id = store.get("cfId"), secret = store.get("cfSecret");
+  if (!id || !secret) { render("—", false, "No token", "Enter your Client ID and Client Secret, then press Save for this tab."); return; }
+  if (!base()) { render("—", false, "No server", "Enter the server URL."); return; }
+
+  const url = base() + "/" + path.replace(/^\/+/, "");
+  const headers = {
+    "CF-Access-Client-Id": id,
+    "CF-Access-Client-Secret": secret,
+    "Accept": "application/fhir+json"
+  };
+  const opts = { method, headers };
+  if (method !== "GET") {
+    try { JSON.parse(body); } catch (e) { render("—", false, "Invalid JSON", "The body is not valid JSON: " + e.message); return; }
+    headers["Content-Type"] = "application/fhir+json";
+    opts.body = body;
+  }
+
+  const btns = [$("sendBtn"), $("checkBtn")];
+  btns.forEach(b => b.disabled = true);
+  const t0 = performance.now();
+  try {
+    const res = await fetch(url, opts);
+    const ms = Math.round(performance.now() - t0);
+    const text = await res.text();
+    let data = text;
+    try { data = JSON.parse(text); } catch {}
+    if (typeof data === "string" && /<html/i.test(data)) {
+      data = "The server returned an HTML page instead of FHIR JSON. Your token was probably not accepted: check the Client ID and Secret, or ask the team whether it was revoked.";
+    }
+    render(res.status, res.ok, method + " " + url + "  ·  " + ms + " ms", data);
+    if (res.ok) beat();
+  } catch (e) {
+    render("—", false, method + " " + url,
+      "The request did not reach the server.\n\nCommon causes:\n- Wrong server URL\n- Token missing or rejected (the browser reports this as a network/CORS error)\n- You opened this file by double-clicking it; serve it with: python3 -m http.server 8000\n\nDetails: " + e.message);
+  } finally {
+    btns.forEach(b => b.disabled = false);
+  }
+}
+
+$("base").value = store.get("base") || DEFAULT_BASE;
+$("cfId").value = store.get("cfId") || "";
+showTokenState();
+
+$("saveBtn").onclick = () => {
+  store.set("base", base());
+  store.set("cfId", $("cfId").value.trim());
+  store.set("cfSecret", $("cfSecret").value.trim());
+  $("cfSecret").value = "";
+  showTokenState();
+};
+$("forgetBtn").onclick = () => {
+  ["cfId", "cfSecret"].forEach(store.del);
+  $("cfId").value = ""; $("cfSecret").value = "";
+  showTokenState();
+};
+$("checkBtn").onclick = () => send("GET", "metadata?_summary=true");
+$("sendBtn").onclick = () => send($("method").value, $("path").value.trim(), $("body").value);
+$("formatBtn").onclick = () => {
+  try { $("body").value = JSON.stringify(JSON.parse($("body").value), null, 2); }
+  catch (e) { render("—", false, "Invalid JSON", "The body is not valid JSON: " + e.message); }
+};
+$("template").onchange = e => {
+  const t = TEMPLATES[e.target.value]; if (!t) return;
+  $("method").value = t.method; $("path").value = t.path;
+  $("body").value = JSON.stringify(t.body, null, 2);
+  e.target.value = "";
+};
+$("path").addEventListener("keydown", e => { if (e.key === "Enter") $("sendBtn").click(); });
+</script>
+</body>
+</html>
